@@ -52,18 +52,19 @@ def hash_file(filename: str) -> Tuple[Optional[str], int]:
         logger.error(f"Error processing {filename}: {str(e)}")
         return (None, 0)
 
-def worker(file_path: str) -> Tuple[str, Optional[str], int]:
+def worker(file_info: Tuple[int, str]) -> Tuple[int, str, Optional[str], int]:
     """
     Worker function for parallel processing.
     
     Args:
-        file_path: Path to the file to hash
+        file_info: Tuple containing (original_index, file_path)
         
     Returns:
-        Tuple of (file_path, hash, file_size) where hash is None if an error occurred
+        Tuple of (original_index, file_path, hash, file_size) where hash is None if an error occurred
     """
+    original_index, file_path = file_info
     hash_result, file_size = hash_file(file_path)
-    return (file_path, hash_result, file_size)
+    return (original_index, file_path, hash_result, file_size)
 
 def format_size(bytes: int) -> str:
     """
@@ -95,7 +96,7 @@ def hash_directory(directory: str, output_file: str, num_workers: int = None) ->
         num_workers = min(32, multiprocessing.cpu_count())
     logger.info(f"Using {num_workers} worker processes")
     
-    # Get list of all files first
+    # Get list of all files first, preserving the order from os.walk
     file_list = []
     total_size = 0
     logger.info(f"Scanning directory: {directory}")
@@ -105,7 +106,8 @@ def hash_directory(directory: str, output_file: str, num_workers: int = None) ->
             try:
                 file_size = os.path.getsize(file_path)
                 total_size += file_size
-                file_list.append(file_path)
+                # Store the index with the file path to preserve original order
+                file_list.append((len(file_list), file_path))
             except (OSError, PermissionError) as e:
                 logger.warning(f"Cannot access {file_path}: {str(e)}")
     
@@ -125,17 +127,20 @@ def hash_directory(directory: str, output_file: str, num_workers: int = None) ->
         desc="Hashing files"
     ) as pbar:
         with multiprocessing.Pool(processes=num_workers) as pool:
-            for file_path, file_hash, file_size in pool.imap_unordered(worker, file_list):
-                results.append((file_path, file_hash))
+            for original_index, file_path, file_hash, file_size in pool.imap_unordered(worker, file_list):
+                results.append((original_index, file_path, file_hash, file_size))
                 processed_bytes += file_size
                 pbar.update(file_size)
+    
+    # Sort results by original index to preserve os.walk order
+    results.sort(key=lambda x: x[0])
     
     # Write results to CSV
     successful_files = 0
     with open(output_file, 'w', newline='', encoding='utf-8') as file:
         writer = csv.writer(file)
         writer.writerow(["File Path", "BLAKE2 Hash"])
-        for file_path, file_hash in sorted(results):
+        for _, file_path, file_hash, _ in results:
             if file_hash:
                 writer.writerow([file_path, file_hash])
                 successful_files += 1
