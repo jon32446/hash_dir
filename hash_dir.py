@@ -99,6 +99,8 @@ def hash_directory(directory: str, output_file: str, num_workers: int = None) ->
     # Get list of all files first, preserving the order from os.walk
     file_list = []
     total_size = 0
+    # Convert to absolute path for consistent processing
+    abs_directory = os.path.abspath(directory)
     logger.info(f"Scanning directory: {directory}")
     for root, dirs, files in os.walk(directory):
         for name in files:
@@ -138,6 +140,13 @@ def hash_directory(directory: str, output_file: str, num_workers: int = None) ->
     # Write results to CSV (file or stdout)
     successful_files = 0
     
+    # Function to make paths relative to the input directory
+    def make_path_relative(path):
+        # Use os.path.relpath to get the path relative to the input directory
+        rel_path = os.path.relpath(path, directory)
+        # Convert backslashes to forward slashes for consistency across platforms
+        return rel_path.replace('\\', '/')
+    
     # Determine if we're writing to stdout or a file
     if output_file == "-":
         # Write to stdout
@@ -149,7 +158,7 @@ def hash_directory(directory: str, output_file: str, num_workers: int = None) ->
         writer.writerow(["File Path", "BLAKE2 Hash"])
         for _, file_path, file_hash, _ in results:
             if file_hash:
-                writer.writerow([file_path, file_hash])
+                writer.writerow([make_path_relative(file_path), file_hash])
                 successful_files += 1
         output_message = "standard output"
     else:
@@ -159,7 +168,7 @@ def hash_directory(directory: str, output_file: str, num_workers: int = None) ->
             writer.writerow(["File Path", "BLAKE2 Hash"])
             for _, file_path, file_hash, _ in results:
                 if file_hash:
-                    writer.writerow([file_path, file_hash])
+                    writer.writerow([make_path_relative(file_path), file_hash])
                     successful_files += 1
         output_message = f"file {output_file}"
     

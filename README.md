@@ -100,15 +100,17 @@ optional arguments:
 
 The output CSV file contains two columns:
 
-1. **File Path**: Relative path to the file from the specified directory
+1. **File Path**: Relative path to the file from the input directory
 2. **BLAKE2 Hash**: Hexadecimal representation of the BLAKE2 hash
 
 Example:
 ```
 File Path,BLAKE2 Hash
-docs/example.txt,7d5164b96e93e46735f724292e1b13aac77f1d9dbdb80d5c3682d2a1a57d6a1e596dff1e148106ec9bff4aea522865eda5dd0a96b224edaf7a49c701e82e10da
-images/logo.png,b78dae85d609f63f0e925560a5c3506f2d4ae63b03266d1b99616e488d8e73fa6193aa4a5e78c39526a44d92bd554c01f79bfc3bd9b638caf8c25ef7d3dc7a8d
+docs/example.txt,7d5164b96...
+images/logo.png,b78dae85d6...
 ```
+
+Paths are always displayed relative to the input directory and use forward slashes for consistency across platforms, even if an absolute path was provided.
 
 ## Performance Considerations
 
@@ -119,7 +121,7 @@ images/logo.png,b78dae85d609f63f0e925560a5c3506f2d4ae63b03266d1b99616e488d8e73fa
 
 ### Optimizing Worker Count
 
-The default worker count is set to `min(32, CPU_count)`, which works well for SSD-based systems. However:
+The default worker count is set to the number of CPU cores, up to a maximum of 32, which works well for SSD-based systems. However:
 
 - If you're running on an HDD, try reducing the worker count to 1 using the `-w` option
 - If you're running on a high-core-count server with SSDs, the default should work well
@@ -138,7 +140,7 @@ Using 8 worker processes
 Scanning directory: /path/to/dir
 Found 1000 files to process (2.45 GB)
 Hashing files: 100%|████████████████| 2.45G/2.45G [00:30<00:00, 85.3MB/s]
-Completed hashing 998/1000 files (2.45 GB) in 30.12 seconds
+Completed hashing 1000/1000 files (2.45 GB) in 30.12 seconds
 Average throughput: 85.32 MB/s
 Results written to dir_hashes_blake2.csv
 ```
