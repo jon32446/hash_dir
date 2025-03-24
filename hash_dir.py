@@ -4,7 +4,7 @@ hash_dir.py - Compute BLAKE2 hashes for all files in a directory
 
 This script recursively traverses a directory and computes BLAKE2 hashes for all files
 it encounters, supporting Unicode filenames including international characters and emojis.
-Results are written to a CSV file.
+Results are written to a CSV file or stdout.
 """
 
 import os
@@ -84,11 +84,11 @@ def format_size(bytes: int) -> str:
 
 def hash_directory(directory: str, output_file: str, num_workers: int = None) -> None:
     """
-    Hash all files in a directory recursively and write results to a CSV file.
+    Hash all files in a directory recursively and write results to a CSV file or stdout.
     
     Args:
         directory: Directory to process
-        output_file: Path to output CSV file
+        output_file: Path to output CSV file or "-" for stdout
         num_workers: Number of worker processes (defaults to CPU count)
     """
     start_time = time.time()
@@ -135,22 +135,40 @@ def hash_directory(directory: str, output_file: str, num_workers: int = None) ->
     # Sort results by original index to preserve os.walk order
     results.sort(key=lambda x: x[0])
     
-    # Write results to CSV
+    # Write results to CSV (file or stdout)
     successful_files = 0
-    with open(output_file, 'w', newline='', encoding='utf-8') as file:
-        writer = csv.writer(file)
+    
+    # Determine if we're writing to stdout or a file
+    if output_file == "-":
+        # Write to stdout
+        # For Windows compatibility, explicitly set newline handling
+        if sys.platform == 'win32':
+            writer = csv.writer(sys.stdout, lineterminator='\n')
+        else:
+            writer = csv.writer(sys.stdout)
         writer.writerow(["File Path", "BLAKE2 Hash"])
         for _, file_path, file_hash, _ in results:
             if file_hash:
                 writer.writerow([file_path, file_hash])
                 successful_files += 1
+        output_message = "standard output"
+    else:
+        # Write to file
+        with open(output_file, 'w', newline='', encoding='utf-8') as file:
+            writer = csv.writer(file)
+            writer.writerow(["File Path", "BLAKE2 Hash"])
+            for _, file_path, file_hash, _ in results:
+                if file_hash:
+                    writer.writerow([file_path, file_hash])
+                    successful_files += 1
+        output_message = f"file {output_file}"
     
     elapsed_time = time.time() - start_time
     throughput = processed_bytes / elapsed_time if elapsed_time > 0 else 0
     
     logger.info(f"Completed hashing {successful_files}/{total_files} files ({format_size(processed_bytes)}) in {elapsed_time:.2f} seconds")
     logger.info(f"Average throughput: {format_size(throughput)}/s")
-    logger.info(f"Results written to {output_file}")
+    logger.info(f"Results written to {output_message}")
 
 def main() -> None:
     """Parse arguments and execute the script."""
@@ -164,7 +182,7 @@ def main() -> None:
     parser.add_argument(
         '-o', '--output',
         default='dir_hashes_blake2.csv',
-        help='Output CSV file (default: dir_hashes_blake2.csv)'
+        help='Output CSV file (default: dir_hashes_blake2.csv). Use "-" for stdout'
     )
     parser.add_argument(
         '-w', '--workers',
