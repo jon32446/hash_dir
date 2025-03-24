@@ -29,7 +29,7 @@ The output of this script has been independently verified by comparing it agains
 
 ```bash
 # Clone the repository
-git clone REPO_URL
+git clone https://github.com/jon32446/hash_dir.git
 cd hash_dir
 
 # Install dependencies
